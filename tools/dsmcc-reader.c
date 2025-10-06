@@ -231,7 +231,7 @@ int main(int argc, char **argv)
 	if (!strcmp(argv[1], "-"))
 		ts = stdin;
 	else
-		ts = fopen(argv[1], "r");
+		ts = fopen(argv[1], "rb");
 	if (ts)
 	{
 		pthread_mutex_init(&g_mutex, NULL);
