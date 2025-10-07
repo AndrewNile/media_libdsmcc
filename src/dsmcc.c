@@ -36,7 +36,7 @@ static void load_state(struct dsmcc_state *state)
 
 	DSMCC_DEBUG("Loading cached state");
 
-	f = fopen(state->cachefile, "r");
+	f = fopen(state->cachefile, "rb");
 	if (!dsmcc_object_carousel_load_all(f, state))
 		DSMCC_ERROR("Error while loading cached state");
 	fclose(f);
@@ -51,7 +51,7 @@ static void save_state(struct dsmcc_state *state)
 
 	DSMCC_DEBUG("Saving state");
 
-	f = fopen(state->cachefile, "w");
+	f = fopen(state->cachefile, "wb");
 	if (!dsmcc_object_carousel_save_all(f, state))
 		DSMCC_ERROR("Error while saving cached state");
 	fclose(f);
