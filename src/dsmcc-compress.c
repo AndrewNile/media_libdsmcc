@@ -122,10 +122,10 @@ bool dsmcc_inflate_file(const char *filename)
 	tmpfilename = malloc(strlen(filename) + 8);
 	sprintf(tmpfilename, "%s.XXXXXX", filename);
 
-	input = fopen(filename, "r");
+	input = fopen(filename, "rb");
 
 	tmp = mkstemp(tmpfilename);
-	output = fdopen(tmp, "w");
+	output = fdopen(tmp, "wb");
 
 	DSMCC_DEBUG("Uncompressed file %s to %s", filename, tmpfilename);
 
