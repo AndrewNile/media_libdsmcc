@@ -22,26 +22,26 @@ void dsmcc_group_info_indication_free(struct dsmcc_group_list *groups)
 
 }
 
-static int gii_parse_group(struct dsmcc_group_list *group, uint8_t *data, int data_lenght)
+static int gii_parse_group(struct dsmcc_group_list *group, uint8_t *data, int data_length)
 {
-	uint16_t compat_descriptor_lenght;
+	uint16_t compat_descriptor_length;
 	uint16_t group_info_length;
-	uint16_t private_lenght;
+	uint16_t private_length;
 	int off = 0;
-	if(!dsmcc_getlong(&group->id, data, 0, data_lenght))
+	if(!dsmcc_getlong(&group->id, data, 0, data_length))
 		return -1;
-	if(!dsmcc_getlong(&group->size, data, 4, data_lenght))
+	if(!dsmcc_getlong(&group->size, data, 4, data_length))
 		return -1;
 
-	if(!dsmcc_getshort(&compat_descriptor_lenght, data, 8, data_lenght))
+	if(!dsmcc_getshort(&compat_descriptor_length, data, 8, data_length))
 		return -1;
-	if(compat_descriptor_lenght != 0)
+	if(compat_descriptor_length != 0)
 	{
 		DSMCC_WARN("group contains a compatibility descriptor but it's unhandled");
 	}
-	off += 10 + compat_descriptor_lenght;
+	off += 10 + compat_descriptor_length;
 
-	if(!dsmcc_getshort(&group_info_length, data, off, data_lenght))
+	if(!dsmcc_getshort(&group_info_length, data, off, data_length))
 		return -1;
 	if(group_info_length != 0)
 	{
@@ -49,10 +49,10 @@ static int gii_parse_group(struct dsmcc_group_list *group, uint8_t *data, int da
 	}
 	off += 2 + group_info_length;
 
-	if(!dsmcc_getshort(&private_lenght, data, off, data_lenght))
+	if(!dsmcc_getshort(&private_length, data, off, data_length))
 		return -1;
 
-	return off + 2 + private_lenght;
+	return off + 2 + private_length;
 }
 
 int dsmcc_group_info_indication_parse(struct dsmcc_group_list **groups, uint8_t *data, int data_length)
