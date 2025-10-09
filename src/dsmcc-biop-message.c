@@ -420,25 +420,25 @@ static int parse_file(struct biop_msg **firstmsg, struct biop_msg **lastmsg, str
 
 static uint8_t *mmap_data(const char *filename, int size)
 {
-	int fd;
+	FILE *fp;
 	uint8_t *data;
 
-	fd = open(filename, O_RDONLY);
-	if (fd < 0)
+	fp = fopen(filename, "rb");
+	if (fp == NULL)
 	{
 		DSMCC_ERROR("Can't open module data file '%s': %s", filename, strerror(errno));
 		return NULL;
 	}
 
-	data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+	data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fileno(fp), 0);
 	if (data == MAP_FAILED)
 	{
 		DSMCC_ERROR("Can't mmap module data file '%s': %s", filename, strerror(errno));
-		close(fd);
+		fclose(fp);
 		return NULL;
 	}
 
-	close(fd);
+	fclose(fp);
 	return data;
 }
 
