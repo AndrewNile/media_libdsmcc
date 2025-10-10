@@ -7,11 +7,17 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <sys/time.h>
+#ifdef __linux__
 #include <linux/limits.h>
+#endif
 
 #include <dsmcc/dsmcc.h>
 #include <dsmcc/dsmcc-tsparser.h>
 
+/* For Windows/MinGW compatibility */
+#ifndef strndup
+#define strndup dsmcc_strndup
+#endif
 
 static int g_running = 1;
 static int g_complete = 0;
@@ -241,7 +247,12 @@ int main(int argc, char **argv)
 
 		dvb_callbacks.get_pid_for_assoc_tag = &get_pid_for_assoc_tag;
 		dvb_callbacks.add_section_filter = &add_section_filter;
+#ifdef _WIN32
+		/* Let libdsmcc create the cache directory in Windows temp */
+		state = dsmcc_open("", 1, &dvb_callbacks);
+#else
 		state = dsmcc_open("/tmp/dsmcc-cache", 1, &dvb_callbacks);
+#endif
 
 		dsmcc_tsparser_add_pid(&buffers, pid);
 
