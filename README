@@ -1,3 +1,36 @@
+MEDIA_LIBDSMCC
+==============
+Fork of the project media_libdsmcc by Gregory Koch, who significantly reworked the libdsmcc library written by Richard Palmer.
+
+This fork brings Windows (MinGW) compatibility to the library. It probably doesn't support pure MSVC due to the use of several POSIX functions (such as fileno()).
+
+The flavour of MinGW I compiled this against is mxe. I have attempted to retain the original Linux code, its functionality has not been tested and I'd recommend you use the original library instead.
+
+
+REQUIREMENTS
+============
+ZLib
+mman wrapper for Windows (https://github.com/alitrack/mman-win32)
+
+
+BUILDING
+========
+The following flags can be used with the configure script:
+--enable-debug                       Enables verbose debug messages
+--enable-ignore-private-indicator    Decodes sections marked as private
+
+Please note that TMP_OVERWRITING is currently broken in Windows.
+
+
+USAGE
+=====
+The tool dsmcc-reader can be used to work with .ts or .pid dumps captured from DVB cards.
+
+dsmcc-reader <dump file.ts> <PID to decode in decimal> <output directory>
+
+
+INFO
+====
 Some part of the DSM-CC specification are not implemented in libdsmcc:
 - Groups and SuperGroups (ETSI TR 101 202 4.6.2 to 4.6.4)
 - BIOP Lite Options Profile Body (ETSI TR 101 202 4.7.3.3)
