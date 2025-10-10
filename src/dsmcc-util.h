@@ -94,7 +94,7 @@ static inline bool dsmcc_strdup(char **dst, int dstlength, const uint8_t *data, 
 		return 0;
 	if (dstlength > 0)
 	{
-		*dst = malloc(dstlength);
+		*dst = malloc(dstlength + 1);
 		strncpy(*dst, (const char *)data, dstlength);
 	}
 	else
