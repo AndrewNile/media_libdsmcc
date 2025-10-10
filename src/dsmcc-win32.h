@@ -1,7 +1,8 @@
 #ifndef DSMCC_WIN32_H
 #define DSMCC_WIN32_H
 
-// from time.h
+/* timeradd and timersub 
+   courtesy of Geoffrey Noer's public domain time.h code */
 
 #ifndef timeradd
 #define timeradd(a, b, result) \
