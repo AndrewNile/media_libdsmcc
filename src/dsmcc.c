@@ -7,14 +7,19 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <time.h>
+#ifdef __linux__
 #include <linux/limits.h>
+#endif
+#ifdef _WIN32
+#include <windows.h>  /* MAX_PATH */
+#include "dsmcc-win32.h"
+#endif
 
 #include "dsmcc.h"
 #include "dsmcc-util.h"
 #include "dsmcc-carousel.h"
 #include "dsmcc-section.h"
 #include "dsmcc-cache-file.h"
-
 
 struct dsmcc_queue_entry
 {
@@ -243,15 +248,33 @@ struct dsmcc_state *dsmcc_open(const char *cachedir, bool keep_cache, struct dsm
 
 	if (cachedir == NULL || strlen(cachedir) == 0)
 	{
+#ifdef _WIN32
+		char buffer[MAX_PATH];
+		char *path = dsmcc_wintempdir();
+		if (strlen(path) > MAX_PATH)
+		{
+			DSMCC_ERROR("Cache dir path exceeds Windows maximum size of %d", MAX_PATH);
+		}
+		sprintf(buffer, "%s\\libdsmcc-cache-%d", path, getpid());
+		if (path != NULL)
+		{
+			free(path);
+		}
+#else
 		char buffer[32];
-		sprintf(buffer, "/tmp/libdsmcc-cache-%d", getpid());
+		sprintf(buffer, "libdsmcc-cache-%d", getpid());
+#endif
 		if (buffer[strlen(buffer) - 1] == '/')
 			buffer[strlen(buffer) - 1] = '\0';
 		state->cachedir = strdup(buffer);
 	}
 	else
 		state->cachedir = strdup(cachedir);
+#ifdef _WIN32
+	mkdir(state->cachedir);
+#else
 	mkdir(state->cachedir, 0770);
+#endif
 	state->keep_cache = keep_cache;
 
 	state->cachefile = malloc(strlen(state->cachedir) + 7);

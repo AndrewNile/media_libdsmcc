@@ -42,7 +42,7 @@ static int parse_tap(struct biop_tap *tap, uint8_t *data, int data_length)
 int dsmcc_biop_parse_taps_keep_only_first(struct biop_tap **tap0, uint16_t tap0_use, uint8_t *data, int data_length)
 {
 	int off = 0, ret, i;
-	uint8_t taps_count;
+	uint8_t taps_count = 0;
 
 	if (!dsmcc_getbyte(&taps_count, data, off, data_length))
 		return -1;

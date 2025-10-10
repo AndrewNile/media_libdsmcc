@@ -9,7 +9,9 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+#ifdef __linux__
 #include <linux/limits.h>
+#endif
 
 #include <glib.h>
 
@@ -88,9 +90,9 @@ char *dsmcc_tolower(char *s)
 
 bool dsmcc_file_copy(const char *dstfile, const char *srcfile, int offset, int length)
 {
-	int dst = -1, src = -1;
+	FILE *src = NULL, *dst = NULL;
 	char *tmpfile;
-	char data_buf[4096];
+	char *data_buf = NULL;
 	int rsize, wsize, ret = 0;
 
 #ifndef TMP_OVERWRITING
@@ -101,111 +103,125 @@ bool dsmcc_file_copy(const char *dstfile, const char *srcfile, int offset, int l
 	tmpfile = (char*)srcfile;
 #endif
 
-	src = open(srcfile, O_RDONLY);
-	if (src < 0)
+	src = fopen(srcfile, "rb");
+	if (src == NULL)
 	{
 		DSMCC_ERROR("Source file file open error '%s': %s", srcfile, strerror(errno));
 		goto cleanup;
 	}
 
-	if (lseek(src, offset, SEEK_SET) < 0)
+	if (fseek(src, offset, SEEK_SET) < 0)
 	{
 		DSMCC_ERROR("Source file seek error '%s': %s", srcfile, strerror(errno));
 		goto cleanup;
 	}
 
 #ifndef TMP_OVERWRITING
-	dst = mkstemp(tmpfile);
+	dst = fdopen(mkstemp(tmpfile), "wb");
 #else
-	dst = open(srcfile, O_WRONLY);
+	dst = fopen(srcfile, "wb");
 #endif
-	if (dst < 0)
+	if (dst == NULL)
 	{
 		DSMCC_ERROR("Destination file open error '%s': %s", tmpfile, strerror(errno));
 		goto cleanup;
 	}
 
-	if (fchmod(dst, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0)
+#ifndef _WIN32
+	if (fchmod(fileno(dst), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH) < 0)
 	{
 		DSMCC_ERROR("Destination file fchmod error '%s': %s", tmpfile, strerror(errno));
 		goto cleanup;
 	}
+#endif
 
 	DSMCC_DEBUG("Copying %d bytes from %s at offset %d to %s", length, srcfile, offset, tmpfile);
 
-	while (length > 0)
+	data_buf = malloc(sizeof(char) * length);
+	rsize = fread(data_buf, sizeof(char), length, src);
+	
+	if (rsize > 0)
 	{
-		rsize = length;
-		if (rsize > ((int) sizeof data_buf))
-			rsize = sizeof data_buf;
-
-		rsize = read(src, data_buf, rsize);
-		if (rsize < 0)
+		wsize = fwrite(data_buf, sizeof(char), rsize, dst);
+		if (wsize < 0)
 		{
-			DSMCC_ERROR("Read error '%s': %s", srcfile, strerror(errno));
-			break;
+			DSMCC_ERROR("Write error '%s': %s", tmpfile, strerror(errno));
+			goto cleanup;
 		}
-		else if (rsize == 0)
+		else if (wsize < rsize)
 		{
-			DSMCC_ERROR("Unexpected EOF '%s'", srcfile);
-			break;
-		}
-		else
-		{
-			wsize = write(dst, data_buf, rsize);
-			if (wsize < 0)
-			{
-				DSMCC_ERROR("Write error '%s': %s", tmpfile, strerror(errno));
-				break;
-			}
-			else if (wsize < rsize)
-			{
-				DSMCC_ERROR("Short write '%s'", tmpfile);
-				break;
-			}
-			length -= wsize;
+			DSMCC_ERROR("Short write '%s'", tmpfile);
+			goto cleanup;
 		}
 	}
-
-	if (length > 0)
+	else
 	{
-		DSMCC_DEBUG("Error occurred, deleting %s", tmpfile);
+		DSMCC_WARN("No data read in file %s", srcfile);
+	}
+
+	if (ferror(src))
+	{
+		DSMCC_ERROR("Read error '%s': %s", srcfile, strerror(errno));
+		goto cleanup;
+	}
+	if (ferror(dst))
+	{
+		DSMCC_DEBUG("Write error occurred, deleting %s", tmpfile);
 #ifndef TMP_OVERWRITING
 		unlink(tmpfile);
 #endif
 		goto cleanup;
 	}
-	else
+	
+#ifdef _WIN32
+	/* File must be released to rename it on Windows */
+	if (dst != NULL)
 	{
-		DSMCC_DEBUG("Renaming %s to %s", tmpfile, dstfile);
-		if(!rename(tmpfile, dstfile))
-		{
-#ifndef TMP_OVERWRITING
-			ret = 1;
-#else
-			if (!truncate(dstfile, len))
-			{
-				ret = 1;
-			}
-			else
-			{
-				DSMCC_ERROR("Truncate error '%s' : %s", dstfile, strerror(errno));
-				ret = 0;
-			}
+		fclose(dst);
+	}
 #endif
+	
+	DSMCC_DEBUG("Renaming %s to %s", tmpfile, dstfile);
+	
+	/* Remove destination file, if it exists */
+	if ((remove(dstfile) != 0) && (errno != ENOENT))
+	{
+		DSMCC_ERROR("Error removing destination file '%s' : %s", dstfile, strerror(errno));
+		goto cleanup;
+	}
+	
+	if(!rename(tmpfile, dstfile))
+	{
+#ifndef TMP_OVERWRITING
+		ret = 1;
+#else
+		if (!truncate(dstfile, len))
+		{
+			ret = 1;
 		}
 		else
 		{
-			DSMCC_ERROR("Renaming error '%s' -> '%s': %s", tmpfile, dstfile, strerror(errno));
+			DSMCC_ERROR("Truncate error '%s' : %s", dstfile, strerror(errno));
 			ret = 0;
 		}
+#endif
+	}
+	else
+	{
+		DSMCC_ERROR("Renaming error '%s' -> '%s': %s", tmpfile, dstfile, strerror(errno));
+		ret = 0;
 	}
 
 cleanup:
-	if (dst > 0)
-		close(dst);
-	if (src > 0)
-		close(src);
+	if (src != NULL)
+		fclose(src);
+
+	if (dst != NULL)
+		fclose(dst);
+
+	if (data_buf != NULL)
+		free(data_buf);
+
 #ifndef TMP_OVERWRITING
 	free(tmpfile);
 #endif
@@ -255,11 +271,15 @@ bool dsmcc_file_link(const char *dstfile, const char *srcfile, int length, const
 			goto cleanup;
 		}
 	}
+	
+	/* Hard links not really used in Windows, direct to making a copy */
+#ifndef _WIN32
 	if (link(srcfile, tmpfile) < 0)
 	{
 		if (errno == EXDEV)
 		{
 			DSMCC_DEBUG("Linking failed with EXDEV, trying a copy instead");
+#endif
 			if (length < 0)
 			{
 				if (stat(srcfile, &s) < 0)
@@ -272,6 +292,7 @@ bool dsmcc_file_link(const char *dstfile, const char *srcfile, int length, const
 			}
 			if (ret)
 				ret = dsmcc_file_copy(dstfile, srcfile, 0, length);
+#ifndef _WIN32
 		}
 		else
 		{
@@ -291,6 +312,7 @@ bool dsmcc_file_link(const char *dstfile, const char *srcfile, int length, const
 			ret = 1;
 		unlink(tmpfile);
 	}
+#endif
 
 cleanup:
 	free(subdirpath);
@@ -300,37 +322,37 @@ cleanup:
 
 bool dsmcc_file_write_block(const char *dstfile, int offset, uint8_t *data, int length)
 {
-	int fd;
+	FILE *fp;
 	ssize_t wret;
 
-	fd = open(dstfile, O_WRONLY | O_CREAT, 0660);
-	if (fd < 0)
+	fp = fopen(dstfile, "wb");
+	if (fp == NULL)
 	{
 		DSMCC_ERROR("Can't open file for writing '%s': %s", dstfile, strerror(errno));
 		return 0;
 	}
 
-	if (lseek(fd, offset, SEEK_SET) < 0)
+	if (fseek(fp, offset, SEEK_SET) < 0)
 	{
 		DSMCC_ERROR("Can't seek file '%s' : %s", dstfile, strerror(errno));
-		close(fd);
+		fclose(fp);
 		return 0;
 	}
 
-	wret = write(fd, data, length);
+	wret = fwrite(data, 1, length, fp);
 	if (wret < 0)
 	{
 		DSMCC_ERROR("Write error to file '%s': %s", dstfile, strerror(errno));
-		close(fd);
+		fclose(fp);
 		return 0;
 	}
 	else if (wret < length)
 	{
 		DSMCC_ERROR("Partial write to file '%s': %d/%u", dstfile, wret, length);
-		close(fd);
+		fclose(fp);
 		return 0;
 	}
 
-	close(fd);
+	fclose(fp);
 	return 1;
 }

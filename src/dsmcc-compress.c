@@ -139,12 +139,21 @@ bool dsmcc_inflate_file(const char *filename)
 	if (ret == Z_OK)
 	{
 		DSMCC_DEBUG("Renaming uncompressed file from %s to %s", tmpfilename, filename);
-		rename(tmpfilename, filename);
+		/* Windows needs the old file to be deleted first */
+		if (remove(filename) != 0)
+		{
+			DSMCC_ERROR("Error removing compressed file %s", filename);
+			goto cleanup;
+		}
+		if (rename(tmpfilename, filename) != 0)
+		{
+			DSMCC_ERROR("Error renaming file %s to %s", tmpfilename, filename);
+			goto cleanup;
+		}
 		return 1;
 	}
-	else
-	{
-		unlink(tmpfilename);
-		return 0;
-	}
+
+cleanup:
+	unlink(tmpfilename);
+	return 0;
 }

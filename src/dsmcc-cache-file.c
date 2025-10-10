@@ -4,7 +4,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifdef __linux__
 #include <linux/limits.h>
+#endif
 
 #include "dsmcc.h"
 #include "dsmcc-cache-file.h"
@@ -386,7 +388,11 @@ static void write_dir(struct dsmcc_file_cache *filecache, struct dsmcc_cached_di
 	}
 
 	DSMCC_DEBUG("Creating directory %s", dn);
+#ifdef _WIN32
+	mkdir(dn);
+#else
 	mkdir(dn, 0770);
+endif
 	dir->written = 1;
 
 	/* register and call callback (except for gateway) */

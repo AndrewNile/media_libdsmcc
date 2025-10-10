@@ -16,7 +16,8 @@ libdsmcc_la_SOURCES = \
 	dsmcc-util.c \
 	dsmcc-cache-file.c \
 	dsmcc-carousel.c \
-	dsmcc-gii.c
+	dsmcc-gii.c \
+	dsmcc-win32.c
 
 noinst_HEADERS = \
 	dsmcc-biop-ior.h \
@@ -34,10 +35,11 @@ noinst_HEADERS = \
 	dsmcc-descriptor.h \
 	dsmcc.h \
 	dsmcc-ts.h \
-	dsmcc-util.h
+	dsmcc-util.h \
+	dsmcc-win32.h
 
 AM_LDFLAGS = \
-    -lrt \
+    -lmman \
     $(glib_LIBS)
 
 if HAVE_ZLIB
