@@ -325,20 +325,20 @@ bool dsmcc_file_write_block(const char *dstfile, int offset, uint8_t *data, int 
 	FILE *fp;
 	ssize_t wret;
 
-	fp = fopen(dstfile, "wb");
+	fp = fopen(dstfile, "a+b");
 	if (fp == NULL)
 	{
 		DSMCC_ERROR("Can't open file for writing '%s': %s", dstfile, strerror(errno));
 		return 0;
 	}
-
+/*
 	if (fseek(fp, offset, SEEK_SET) < 0)
 	{
 		DSMCC_ERROR("Can't seek file '%s' : %s", dstfile, strerror(errno));
 		fclose(fp);
 		return 0;
 	}
-
+*/
 	wret = fwrite(data, 1, length, fp);
 	if (wret < 0)
 	{
